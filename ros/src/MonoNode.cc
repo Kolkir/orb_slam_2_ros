@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 MonoNode::MonoNode (ORB_SLAM2::System::eSensor sensor, ros::NodeHandle &node_handle, image_transport::ImageTransport &image_transport) : Node (sensor, node_handle, image_transport) {
   image_subscriber = image_transport.subscribe ("/camera/image_raw", 1, &MonoNode::ImageCallback, this);
   camera_info_topic_ = "/camera/camera_info";
+  odom_subscriber = node_handle.subscribe("odom", 1, &MonoNode::OdomCallback, this);
 }
 
 
@@ -49,4 +50,11 @@ void MonoNode::ImageCallback (const sensor_msgs::ImageConstPtr& msg) {
   orb_slam_->TrackMonocular(cv_in_ptr->image,cv_in_ptr->header.stamp.toSec());
 
   Update ();
+}
+
+void MonoNode::OdomCallback (const nav_msgs::Odometry::ConstPtr& msg) {
+    tf2::Transform transform;
+    transform.setOrigin(tf2::Vector3(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z));
+    transform.setRotation(tf2::Quaternion(msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z, msg->pose.pose.orientation.w));
+    AddOdometry(transform, msg->header.stamp.toSec());
 }

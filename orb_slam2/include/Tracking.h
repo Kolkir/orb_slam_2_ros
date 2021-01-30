@@ -73,6 +73,8 @@ public:
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);
     cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
     cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
+    void GrabOdometry(const cv::Mat &pos, const double &timestamp);
+    void ClearOdometry();
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -138,6 +140,9 @@ protected:
     // Map initialization for monocular
     void MonocularInitialization();
     void CreateInitialMapMonocular();
+    float ScaleMedianDepthWithOdometry(float medianDepth,
+                                       const cv::Mat& initialTranslation,
+                                       const cv::Mat& currentTranslation) const;
 
     void CheckReplacedInLastFrame();
     bool TrackReferenceKeyFrame();
@@ -235,6 +240,9 @@ protected:
     int nLevels;
     int fIniThFAST;
     int fMinThFAST;
+
+    // Odometry tracking
+    std::map<double, cv::Mat> mOdometryPoses;
 };
 
 } //namespace ORB_SLAM

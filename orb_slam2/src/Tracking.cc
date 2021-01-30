@@ -668,6 +668,9 @@ void Tracking::CreateInitialMapMonocular()
 
     // Set median depth to 1
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    medianDepth = ScaleMedianDepthWithOdometry(medianDepth,
+                                               pKFini->GetTranslation(),
+                                               pKFcur->GetTranslation());
     float invMedianDepth = 1.0f/medianDepth;
 
     if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<100)
@@ -714,7 +717,52 @@ void Tracking::CreateInitialMapMonocular()
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
+    ClearOdometry();
+
     mState=OK;
+}
+
+void Tracking::ClearOdometry() {
+    mOdometryPoses.clear();
+}
+
+void Tracking::GrabOdometry(const cv::Mat &pos, const double &timestamp) {
+    if (mState==NOT_INITIALIZED) {
+        mOdometryPoses.emplace(timestamp, pos);
+    }
+}
+
+float Tracking::ScaleMedianDepthWithOdometry(float medianDepth,
+                                             const cv::Mat& initialTranslation,
+                                             const cv::Mat& currentTranslation) const {
+    auto sceneStepLength = cv::norm(currentTranslation - initialTranslation);
+
+    std::cout << "Slam frame len " << sceneStepLength << std::endl;
+    std::cout << "Slam init time " << mInitialFrame.mTimeStamp << std::endl;
+    std::cout << "Slam cur time " << mCurrentFrame.mTimeStamp << std::endl;
+
+
+    auto low = mOdometryPoses.lower_bound(mInitialFrame.mTimeStamp);
+    auto upper = mOdometryPoses .upper_bound(mCurrentFrame.mTimeStamp);
+
+    if (low != upper) {
+        if (upper == mOdometryPoses.end()) {
+            upper = std::prev(upper);
+        }
+        auto odomLength = cv::norm(upper->second - low->second);
+        auto scaleFactor = odomLength / sceneStepLength;
+        auto newMedianDepth = medianDepth * scaleFactor;
+        std::cout << "Slam odom start time " << low->first << std::endl;
+        std::cout << "Slam odom end time " << upper->first << std::endl;
+        std::cout << "Slam odom len " << odomLength << std::endl;
+
+        std::cout << "Slam medianDepth " << medianDepth << std::endl;
+        std::cout << "Slam scale factor " << scaleFactor << std::endl;
+        std::cout << "Slam new medianDepth " << newMedianDepth << std::endl;
+        return newMedianDepth;
+
+    }
+    return medianDepth;
 }
 
 void Tracking::CheckReplacedInLastFrame()

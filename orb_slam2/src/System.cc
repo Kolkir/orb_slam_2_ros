@@ -224,6 +224,12 @@ void System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double 
     current_position_ = Tcw;
 }
 
+void System::AddOdometry(const cv::Mat &pos, const double &timestamp) {
+    if (mpTracker) {
+        mpTracker->GrabOdometry(pos, timestamp);
+    }
+}
+
 void System::TrackMonocular(const cv::Mat &im, const double &timestamp)
 {
     if(mSensor!=MONOCULAR)

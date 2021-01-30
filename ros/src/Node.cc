@@ -353,3 +353,15 @@ void Node::LoadOrbParameters (ORB_SLAM2::ORBParameters& parameters) {
     throw std::runtime_error("No cam calibration");
   }
 }
+
+void Node::AddOdometry(const tf2::Transform& tf_position, double timestamp) {
+    // Make transform from target frame to camera frame
+    tf2::Transform tf_target2map = TransformToTarget(tf_position, target_frame_id_param_, camera_frame_id_param_);
+
+    cv::Mat odomPosition(3,1,CV_32F);
+    odomPosition.at<float>(0) = tf_target2map.getOrigin().getX();
+    odomPosition.at<float>(1) = tf_target2map.getOrigin().getY();
+    odomPosition.at<float>(2) = tf_target2map.getOrigin().getZ();
+
+    orb_slam_->AddOdometry(odomPosition, timestamp);
+}

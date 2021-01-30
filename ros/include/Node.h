@@ -59,6 +59,8 @@ class Node
 
   protected:
     void Update ();
+    void AddOdometry(const tf2::Transform& tf_position, double timestamp);
+
     ORB_SLAM2::System* orb_slam_;
     ros::Time current_frame_time_;
 
