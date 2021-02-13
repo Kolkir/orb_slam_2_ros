@@ -664,16 +664,18 @@ void Tracking::CreateInitialMapMonocular()
     // Bundle Adjustment
     cout << "New Map created with " << mpMap->MapPointsInMap() << " points" << endl;
 
-    Optimizer::GlobalBundleAdjustemnt(mpMap,20);
+    Optimizer::GlobalBundleAdjustemnt(mpMap, 20);
 
     // Set median depth to 1
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
     medianDepth = ScaleMedianDepthWithOdometry(medianDepth,
                                                pKFini->GetTranslation(),
-                                               pKFcur->GetTranslation());
+                                               pKFini->mTimeStamp,
+                                               pKFcur->GetTranslation(),
+                                               pKFcur->mTimeStamp);
     float invMedianDepth = 1.0f/medianDepth;
 
-    if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<100)
+    if(medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
     {
         cout << "Wrong initialization, reseting..." << endl;
         Reset();
@@ -717,52 +719,62 @@ void Tracking::CreateInitialMapMonocular()
 
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
 
-    ClearOdometry();
+    ClearOdometry(mCurrentFrame.mTimeStamp);
 
     mState=OK;
 }
 
-void Tracking::ClearOdometry() {
+void Tracking::ClearOdometry(double currentTimeStamp) {
     mOdometryPoses.clear();
+//    const size_t max_odometry_buffer_size_ = 5000;
+//    if (mOdometryPoses.size() > max_odometry_buffer_size_) {
+//        auto upper = mOdometryPoses .upper_bound(currentTimeStamp);
+//        // remove all date until current frame
+//        mOdometryPoses.erase(mOdometryPoses.begin(), upper);
+//        std::cout << "Slam odom cleared" << std::endl;
+//    }
 }
 
 void Tracking::GrabOdometry(const cv::Mat &pos, const double &timestamp) {
-    if (mState==NOT_INITIALIZED) {
+    if (mState == NOT_INITIALIZED) {
         mOdometryPoses.emplace(timestamp, pos);
     }
 }
 
 float Tracking::ScaleMedianDepthWithOdometry(float medianDepth,
                                              const cv::Mat& initialTranslation,
-                                             const cv::Mat& currentTranslation) const {
-    auto sceneStepLength = cv::norm(currentTranslation - initialTranslation);
+                                             double initialTimeStamp,
+                                             const cv::Mat& currentTranslation,
+                                             double currentTimeStamp) {
+    if (mState == NOT_INITIALIZED) {
+        auto sceneStepLength = cv::norm(currentTranslation - initialTranslation);
 
-    std::cout << "Slam frame len " << sceneStepLength << std::endl;
-    std::cout << "Slam init time " << mInitialFrame.mTimeStamp << std::endl;
-    std::cout << "Slam cur time " << mCurrentFrame.mTimeStamp << std::endl;
+        std::cout << "Slam frame len " << sceneStepLength << std::endl;
+        std::cout << "Slam init time " << initialTimeStamp << std::endl;
+        std::cout << "Slam cur time "  << currentTimeStamp << std::endl;
 
+        auto low = mOdometryPoses.lower_bound(initialTimeStamp);
+        auto upper = mOdometryPoses .upper_bound(currentTimeStamp);
 
-    auto low = mOdometryPoses.lower_bound(mInitialFrame.mTimeStamp);
-    auto upper = mOdometryPoses .upper_bound(mCurrentFrame.mTimeStamp);
-
-    if (low != upper) {
-        if (upper == mOdometryPoses.end()) {
-            upper = std::prev(upper);
+        if (low != upper) {
+            if (upper == mOdometryPoses.end()) {
+                upper = std::prev(upper);
+            }
+            auto odomLength = cv::norm(upper->second - low->second);
+            mOdometryScaleFactor = odomLength / sceneStepLength;
+            std::cout << "Slam odom start time " << low->first << std::endl;
+            std::cout << "Slam odom end time " << upper->first << std::endl;
+            std::cout << "Slam odom len " << odomLength << std::endl;
+        } else {
+            std::cout << "Slam odom failed to find scale factor " << std::endl;
+            mOdometryScaleFactor = 1.0f;
         }
-        auto odomLength = cv::norm(upper->second - low->second);
-        auto scaleFactor = odomLength / sceneStepLength;
-        auto newMedianDepth = medianDepth * scaleFactor;
-        std::cout << "Slam odom start time " << low->first << std::endl;
-        std::cout << "Slam odom end time " << upper->first << std::endl;
-        std::cout << "Slam odom len " << odomLength << std::endl;
-
-        std::cout << "Slam medianDepth " << medianDepth << std::endl;
-        std::cout << "Slam scale factor " << scaleFactor << std::endl;
-        std::cout << "Slam new medianDepth " << newMedianDepth << std::endl;
-        return newMedianDepth;
-
     }
-    return medianDepth;
+    auto newMedianDepth = medianDepth * mOdometryScaleFactor;
+    std::cout << "Slam medianDepth " << medianDepth << std::endl;
+    std::cout << "Slam scale factor " << mOdometryScaleFactor << std::endl;
+    std::cout << "Slam new medianDepth " << newMedianDepth << std::endl;
+    return newMedianDepth;
 }
 
 void Tracking::CheckReplacedInLastFrame()

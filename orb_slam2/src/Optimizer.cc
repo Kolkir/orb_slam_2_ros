@@ -185,7 +185,10 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
 
     // Optimize!
     optimizer.initializeOptimization();
-    optimizer.optimize(nIterations);
+    if (optimizer.optimize(nIterations) < 1) {
+        std::cerr << "BA optimizer failed" << std::endl;
+        return;
+    }
 
     // Recover optimized data
 
@@ -233,7 +236,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
             pMP->mnBAGlobalForKF = nLoopKF;
         }
     }
-
+    std::cout << "BundleAdjustment" << std::endl;
 }
 
 int Optimizer::PoseOptimization(Frame *pFrame)
@@ -376,7 +379,10 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
         vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
         optimizer.initializeOptimization(0);
-        optimizer.optimize(its[it]);
+        if (optimizer.optimize(its[it]) < 1) {
+            std::cerr << "Pose estimation failed" << std::endl;
+            return 0;
+        }
 
         nBad=0;
         for(size_t i=0, iend=vpEdgesMono.size(); i<iend; i++)
@@ -657,7 +663,10 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
             return;
 
     optimizer.initializeOptimization();
-    optimizer.optimize(5);
+    if (optimizer.optimize(5) < 1) {
+        std::cerr << "LBA optimizer failed" << std::endl;
+        return;
+    }
 
     bool bDoMore= true;
 
@@ -667,45 +676,45 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
     if(bDoMore)
     {
-
-    // Check inlier observations
-    for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
-    {
-        g2o::EdgeSE3ProjectXYZ* e = vpEdgesMono[i];
-        MapPoint* pMP = vpMapPointEdgeMono[i];
-
-        if(pMP->isBad())
-            continue;
-
-        if(e->chi2()>5.991 || !e->isDepthPositive())
+        // Check inlier observations
+        for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
         {
-            e->setLevel(1);
+            g2o::EdgeSE3ProjectXYZ* e = vpEdgesMono[i];
+            MapPoint* pMP = vpMapPointEdgeMono[i];
+
+            if(pMP->isBad())
+                continue;
+
+            if(e->chi2()>5.991 || !e->isDepthPositive())
+            {
+                e->setLevel(1);
+            }
+
+            e->setRobustKernel(0);
         }
 
-        e->setRobustKernel(0);
-    }
-
-    for(size_t i=0, iend=vpEdgesStereo.size(); i<iend;i++)
-    {
-        g2o::EdgeStereoSE3ProjectXYZ* e = vpEdgesStereo[i];
-        MapPoint* pMP = vpMapPointEdgeStereo[i];
-
-        if(pMP->isBad())
-            continue;
-
-        if(e->chi2()>7.815 || !e->isDepthPositive())
+        for(size_t i=0, iend=vpEdgesStereo.size(); i<iend;i++)
         {
-            e->setLevel(1);
+            g2o::EdgeStereoSE3ProjectXYZ* e = vpEdgesStereo[i];
+            MapPoint* pMP = vpMapPointEdgeStereo[i];
+
+            if(pMP->isBad())
+                continue;
+
+            if(e->chi2()>7.815 || !e->isDepthPositive())
+            {
+                e->setLevel(1);
+            }
+
+            e->setRobustKernel(0);
         }
 
-        e->setRobustKernel(0);
-    }
-
-    // Optimize again without the outliers
-
-    optimizer.initializeOptimization(0);
-    optimizer.optimize(10);
-
+        // Optimize again without the outliers
+        optimizer.initializeOptimization(0);
+        if (optimizer.optimize(10) < 1) {
+            std::cerr << "LBA optimizer failed" << std::endl;
+            return;
+        }
     }
 
     vector<pair<KeyFrame*,MapPoint*> > vToErase;
@@ -774,7 +783,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
         g2o::VertexSBAPointXYZ* vPoint = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(pMP->mnId+maxKFid+1));
         pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
         pMP->UpdateNormalAndDepth();
-    }
+    }    
 }
 
 
@@ -984,7 +993,10 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
     // Optimize!
     optimizer.initializeOptimization();
-    optimizer.optimize(20);
+    if (optimizer.optimize(20) < 1) {
+        std::cerr << "Essential graph optimizer failed" << std::endl;
+        return;
+    }
 
     unique_lock<mutex> lock(pMap->mMutexMapUpdate);
 
@@ -1179,7 +1191,10 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
 
     // Optimize!
     optimizer.initializeOptimization();
-    optimizer.optimize(5);
+    if (optimizer.optimize(5) < 1){
+        std::cerr << "Essential graph optimizer failed" << std::endl;
+        return 0;
+    }
 
     // Check inliers
     int nBad=0;

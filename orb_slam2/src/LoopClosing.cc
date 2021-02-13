@@ -326,7 +326,7 @@ bool LoopClosing::ComputeSim3()
                 const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
 
                 // If optimization is succesful stop ransacs and continue
-                if(nInliers>=20)
+                if(nInliers >= 20)
                 {
                     bMatch = true;
                     mpMatchedKF = pKF;

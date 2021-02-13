@@ -77,8 +77,8 @@ void LocalMapping::Run()
             if(!CheckNewKeyFrames() && !stopRequested())
             {
                 // Local BA
-                if(mpMap->KeyFramesInMap()>2)
-                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
+                if(mpMap->KeyFramesInMap() > 2)
+                    Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame, &mbAbortBA, mpMap);
 
                 // Check redundant local Keyframes
                 KeyFrameCulling();
@@ -244,7 +244,7 @@ void LocalMapping::CreateNewMapPoints()
         // Check first that baseline is not too short
         cv::Mat Ow2 = pKF2->GetCameraCenter();
         cv::Mat vBaseline = Ow2-Ow1;
-        const float baseline = cv::norm(vBaseline);
+        float baseline = cv::norm(vBaseline);
 
         if(!mbMonocular)
         {
@@ -253,11 +253,12 @@ void LocalMapping::CreateNewMapPoints()
         }
         else
         {
-            const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
-            const float ratioBaselineDepth = baseline/medianDepthKF2;
+            float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
+            const float ratioBaselineDepth = baseline / medianDepthKF2;
 
-            if(ratioBaselineDepth<0.01)
+            if(ratioBaselineDepth < 0.01) {
                 continue;
+            }
         }
 
         // Compute Fundamental Matrix
@@ -449,6 +450,7 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
+    mpTracker->ClearOdometry(mpCurrentKeyFrame->mTimeStamp);
 }
 
 void LocalMapping::SearchInNeighbors()
