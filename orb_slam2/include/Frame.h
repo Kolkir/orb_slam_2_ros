@@ -66,6 +66,9 @@ public:
     // Set the camera pose.
     void SetPose(cv::Mat Tcw);
 
+    // Set the odometry pose.
+    void SetOdometryPose(cv::Mat Tcw);
+
     // Computes rotation, translation and camera center matrices from the camera pose.
     void UpdatePoseMatrices();
 
@@ -162,6 +165,9 @@ public:
 
     // Camera pose.
     cv::Mat mTcw;
+
+    // Odometry pose.
+    cv::Mat mOdomTcw;
 
     // Current and Next Frame id.
     static long unsigned int nNextId;

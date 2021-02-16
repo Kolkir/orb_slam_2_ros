@@ -53,7 +53,8 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
             mGrid[i][j] = F.mGrid[i][j];
     }
 
-    SetPose(F.mTcw);    
+    SetPose(F.mTcw);
+    SetOdomPose(F.mOdomTcw);
 }
 
 void KeyFrame::ComputeBoW()
@@ -83,10 +84,21 @@ void KeyFrame::SetPose(const cv::Mat &Tcw_)
     Cw = Twc*center;
 }
 
+void KeyFrame::SetOdomPose(const cv::Mat &Tcw) {
+    unique_lock<mutex> lock(mMutexPose);
+    Tcw.copyTo(mOdomTcw);
+}
+
 cv::Mat KeyFrame::GetPose()
 {
     unique_lock<mutex> lock(mMutexPose);
     return Tcw.clone();
+}
+
+cv::Mat KeyFrame::GetOdomPose()
+{
+    unique_lock<mutex> lock(mMutexPose);
+    return mOdomTcw.clone();
 }
 
 cv::Mat KeyFrame::GetPoseInverse()

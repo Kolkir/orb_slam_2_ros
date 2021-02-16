@@ -55,6 +55,9 @@ public:
     cv::Mat GetRotation();
     cv::Mat GetTranslation();
 
+    void SetOdomPose(const cv::Mat &Tcw);
+    cv::Mat GetOdomPose();
+
     // Bag of Words Representation
     void ComputeBoW();
 
@@ -197,6 +200,9 @@ protected:
     cv::Mat Tcw;
     cv::Mat Twc;
     cv::Mat Ow;
+
+    // SE3 Odometry pose
+    cv::Mat mOdomTcw;
 
     cv::Mat Cw; // Stereo middel point. Only for visualization
 

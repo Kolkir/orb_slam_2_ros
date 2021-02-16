@@ -74,7 +74,6 @@ public:
     cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
     cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
     void GrabOdometry(const cv::Mat &pos, const double &timestamp);
-    void ClearOdometry(double currentTimeStamp);
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -87,13 +86,6 @@ public:
 
     // Use this function if you have deactivated local mapping and you only want to localize the camera.
     void InformOnlyTracking(const bool &flag);
-
-
-    float ScaleMedianDepthWithOdometry(float medianDepth,
-                                       const cv::Mat& initialTranslation,
-                                       double initialTimeStamp,
-                                       const cv::Mat& currentTranslation,
-                                       double currentTimeStamp);
 
 public:
 
@@ -163,6 +155,8 @@ protected:
 
     bool NeedNewKeyFrame();
     void CreateNewKeyFrame();
+
+    void AddOdometryToCurrentFrame();
 
     // In case of performing only localization, this flag is true when there are no matches to
     // points in the map. Still tracking will continue if there are enough matches with temporal points.
@@ -246,7 +240,6 @@ protected:
 
     // Odometry tracking
     std::map<double, cv::Mat> mOdometryPoses;
-    float mOdometryScaleFactor;
 };
 
 } //namespace ORB_SLAM

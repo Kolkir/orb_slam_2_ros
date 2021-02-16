@@ -27,6 +27,7 @@
 #include "Thirdparty/g2o/g2o/core/robust_kernel_impl.h"
 #include "Thirdparty/g2o/g2o/solvers/linear_solver_dense.h"
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include "EdgeSE3Dist.h"
 
 #include<Eigen/StdVector>
 
@@ -80,6 +81,41 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         optimizer.addVertex(vSE3);
         if(pKF->mnId>maxKFid)
             maxKFid=pKF->mnId;
+    }
+
+     // Add odometry edges
+    const auto& graphVertices = optimizer.vertices();
+    std::set<std::pair<long unsigned int, long unsigned int>> odomEdgesIds;
+    const double odomSigma = 0.1; // 10cm
+    for(size_t i=0; i<vpKFs.size(); i++)
+    {
+        KeyFrame* pKF = vpKFs[i];
+        if(pKF->isBad())
+            continue;
+        auto covFrames = pKF->GetVectorCovisibleKeyFrames();
+        for (auto* covFrame : covFrames)
+        {
+            if (graphVertices.find(covFrame->mnId) != graphVertices.end())
+            {
+                auto edgeIdFwd = std::make_pair(pKF->mnId, covFrame->mnId);
+                auto edgeIdBwd = std::make_pair(covFrame->mnId, pKF->mnId);
+                if (odomEdgesIds.find(edgeIdFwd) == odomEdgesIds.end() &&
+                    odomEdgesIds.find(edgeIdBwd) == odomEdgesIds.end())
+                {
+                    cv::Mat diff = pKF->GetPose() - covFrame->GetOdomPose();
+                    auto dist = cv::norm(diff);
+                    auto* odomEdge = new EdgeSE3Dist();
+                    odomEdge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(edgeIdFwd.first)));
+                    odomEdge->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(edgeIdFwd.second)));
+                    odomEdge->setMeasurement(dist);
+                    odomEdge->setInformation(Eigen::Matrix<double,1,1>::Identity() * odomSigma);
+                    optimizer.addEdge(odomEdge);
+
+                    odomEdgesIds.emplace(edgeIdFwd);
+                    odomEdgesIds.emplace(edgeIdBwd);
+                }
+            }
+        }
     }
 
     const float thHuber2D = sqrt(5.99);

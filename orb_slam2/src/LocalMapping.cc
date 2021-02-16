@@ -450,7 +450,6 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
-    mpTracker->ClearOdometry(mpCurrentKeyFrame->mTimeStamp);
 }
 
 void LocalMapping::SearchInNeighbors()

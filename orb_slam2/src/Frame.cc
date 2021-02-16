@@ -258,6 +258,11 @@ void Frame::SetPose(cv::Mat Tcw)
     UpdatePoseMatrices();
 }
 
+void Frame::SetOdometryPose(cv::Mat Tcw)
+{
+    mOdomTcw = Tcw.clone();
+}
+
 void Frame::UpdatePoseMatrices()
 { 
     mRcw = mTcw.rowRange(0,3).colRange(0,3);
