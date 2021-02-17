@@ -38,6 +38,7 @@
 namespace ORB_SLAM2
 {
 
+const double odomSigma = 0.1; // 10cm
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
@@ -86,7 +87,6 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
      // Add odometry edges
     const auto& graphVertices = optimizer.vertices();
     std::set<std::pair<long unsigned int, long unsigned int>> odomEdgesIds;
-    const double odomSigma = 0.1; // 10cm
     for(size_t i=0; i<vpKFs.size(); i++)
     {
         KeyFrame* pKF = vpKFs[i];
@@ -102,7 +102,7 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
                 if (odomEdgesIds.find(edgeIdFwd) == odomEdgesIds.end() &&
                     odomEdgesIds.find(edgeIdBwd) == odomEdgesIds.end())
                 {
-                    cv::Mat diff = pKF->GetPose() - covFrame->GetOdomPose();
+                    cv::Mat diff = pKF->GetOdomPose() - covFrame->GetOdomPose();
                     auto dist = cv::norm(diff);
                     auto* odomEdge = new EdgeSE3Dist();
                     odomEdge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(edgeIdFwd.first)));
@@ -690,6 +690,15 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
                     vpEdgeKFStereo.push_back(pKFi);
                     vpMapPointEdgeStereo.push_back(pMP);
                 }
+
+                cv::Mat diff = pKF->GetOdomPose() - pKFi->GetOdomPose();
+                auto dist = cv::norm(diff);
+                auto* odomEdge = new EdgeSE3Dist();
+                odomEdge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(id)));
+                odomEdge->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFi->mnId)));
+                odomEdge->setMeasurement(dist);
+                odomEdge->setInformation(Eigen::Matrix<double,1,1>::Identity() * odomSigma);
+                optimizer.addEdge(odomEdge);
             }
         }
     }
@@ -1022,6 +1031,15 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
                     en->setMeasurement(Sni);
                     en->information() = matLambda;
                     optimizer.addEdge(en);
+
+                    auto* odomEdge = new EdgeSE3Dist();
+                    cv::Mat diff = pKF->GetOdomPose() - pKFn->GetOdomPose();
+                    auto dist = cv::norm(diff);
+                    odomEdge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(pKFn->mnId)));
+                    odomEdge->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex*>(optimizer.vertex(nIDi)));
+                    odomEdge->setMeasurement(dist);
+                    odomEdge->setInformation(Eigen::Matrix<double,1,1>::Identity() * odomSigma);
+                    optimizer.addEdge(odomEdge);
                 }
             }
         }
