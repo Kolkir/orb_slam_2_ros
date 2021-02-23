@@ -55,6 +55,9 @@ Frame::Frame(const Frame &frame)
 
     if(!frame.mTcw.empty())
         SetPose(frame.mTcw);
+
+    if(!frame.mOdomTcw.empty())
+        SetOdometryPose(frame.mOdomTcw);
 }
 
 

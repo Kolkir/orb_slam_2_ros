@@ -80,6 +80,7 @@ class Node
     boost::shared_ptr<tf2_ros::TransformListener> tfListener;
 
     tf2::Transform TransformFromMat (cv::Mat position_mat);
+    cv::Mat TransformToMat (tf2::Transform position_tf);
     tf2::Transform TransformToTarget (tf2::Transform tf_in, std::string frame_in, std::string frame_target);
     sensor_msgs::PointCloud2 MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points);
 

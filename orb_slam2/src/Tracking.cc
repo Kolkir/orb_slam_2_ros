@@ -43,6 +43,8 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
+const double odomTimeTolerance = 0.5; // seconds
+
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         Map *pMap, KeyFrameDatabase* pKFDB, const int sensor, ORBParameters& parameters):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
@@ -247,10 +249,18 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
 
 void Tracking::AddOdometryToCurrentFrame() {
     auto odom_iter = mOdometryPoses.lower_bound(mCurrentFrame.mTimeStamp);
+    if (odom_iter == mOdometryPoses.end()) {
+        odom_iter = mOdometryPoses.lower_bound(mCurrentFrame.mTimeStamp - odomTimeTolerance);
+    }
+
     if (odom_iter != mOdometryPoses.end()) {
-      mCurrentFrame.SetOdometryPose(odom_iter->second);
+        mCurrentFrame.SetOdometryPose(odom_iter->second);
+    } else if (!mOdometryPoses.empty()){
+        std::cerr << "Failed to find corresponding odometry pose for frame at " << mCurrentFrame.mTimeStamp << " sec timestamp using the last one";
+        mCurrentFrame.SetOdometryPose(mOdometryPoses.rbegin()->second);
     } else {
-        std::cerr << "Failed to find corresponding odometry pose for frame at " << mCurrentFrame.mTimeStamp << " sec timestamp";
+        std::cerr << "There is no odometry data for frames, using zeros";
+        mCurrentFrame.SetOdometryPose(cv::Mat::zeros(4,4,CV_32F));
     }
 }
 
@@ -683,7 +693,7 @@ void Tracking::CreateInitialMapMonocular()
 
     if(medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
     {
-        cout << "Wrong initialization, reseting..." << endl;
+        cout << "Wrong initialization(median depth = " << medianDepth << "), reseting..." << endl;
         Reset();
         return;
     }
@@ -728,8 +738,9 @@ void Tracking::CreateInitialMapMonocular()
     mState=OK;
 }
 
-void Tracking::GrabOdometry(const cv::Mat &pos, const double &timestamp) {
-    mOdometryPoses.emplace(timestamp, pos);
+void Tracking::GrabOdometry(const cv::Mat &pose, const double &timestamp) {
+    mOdometryPoses.emplace(timestamp, pose);
+    // std::cout << "Grab odometry at " << timestamp << std::endl;
 }
 
 void Tracking::CheckReplacedInLastFrame()

@@ -9,6 +9,11 @@ int main(int argc, char **argv)
         ROS_WARN ("Arguments supplied via command line are neglected.");
     }
 
+    //waiting debugger
+//    bool done = false;
+//    while(!done){
+//    }
+
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ros::NodeHandle node_handle;
     image_transport::ImageTransport image_transport (node_handle);

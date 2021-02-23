@@ -79,9 +79,9 @@ public:
     // Returns the camera pose (empty if tracking fails).
     void TrackMonocular(const cv::Mat &im, const double &timestamp);
 
-    // Adds odometry position into the internal buffer and associate with the timestamp
+    // Adds odometry pose into the internal buffer and associate with the timestamp
     // these values will be associated with key frames during Track'ing operation.
-    void AddOdometry(const cv::Mat &pos, const double &timestamp);
+    void AddOdometry(const cv::Mat &pose, const double &timestamp);
 
     // Returns true if there have been a big map change (loop closure, global BA)
     // since last call to this function

@@ -43,6 +43,12 @@ ${g2o_SOURCE_DIR}/g2o/types/types_seven_dof_expmap.h
 ${g2o_SOURCE_DIR}/g2o/types/se3quat.h
 ${g2o_SOURCE_DIR}/g2o/types/se3_ops.h
 ${g2o_SOURCE_DIR}/g2o/types/se3_ops.hpp
+${g2o_SOURCE_DIR}/g2o/types/isometry3d_gradients.cpp
+${g2o_SOURCE_DIR}/g2o/types/isometry3d_gradients.h
+${g2o_SOURCE_DIR}/g2o/types/isometry3d_mappings.cpp
+${g2o_SOURCE_DIR}/g2o/types/isometry3d_mappings.h
+${g2o_SOURCE_DIR}/g2o/types/dquat2mat.cpp
+${g2o_SOURCE_DIR}/g2o/types/dquat2mat.h
 #core
 ${g2o_SOURCE_DIR}/g2o/core/base_edge.h
 ${g2o_SOURCE_DIR}/g2o/core/base_binary_edge.h

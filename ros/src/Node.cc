@@ -219,6 +219,54 @@ tf2::Transform Node::TransformFromMat (cv::Mat position_mat) {
   return tf2::Transform (tf_camera_rotation, tf_camera_translation);
 }
 
+cv::Mat Node::TransformToMat (tf2::Transform transfrom_tf) {
+  tf2::Matrix3x3 tf_rotation;
+  tf_rotation.setRotation(transfrom_tf.getRotation());
+  tf2::Vector3 tf_translation = transfrom_tf.getOrigin();
+
+  //Coordinate transformation matrix from ros coordinate system to orb coordinate system
+  const tf2::Matrix3x3 tf_orb_to_ros (0, 0, 1,
+                                     -1, 0, 0,
+                                      0,-1, 0);
+  const tf2::Matrix3x3 tf_ros_to_orb = tf_orb_to_ros.inverse();
+
+  //Transform from orb coordinate system to ros coordinate system on camera coordinates
+  tf_rotation = tf_ros_to_orb * tf_rotation;
+  tf_translation = tf_ros_to_orb * tf_translation;
+
+  //Inverse matrix
+  tf_rotation = tf_rotation.transpose();
+  tf_translation = -(tf_rotation * tf_translation);
+
+  //Transform from orb coordinate system to ros coordinate system on camera coordinates
+  tf_rotation = tf_ros_to_orb * tf_rotation;
+  tf_translation = tf_ros_to_orb * tf_translation;
+
+
+  cv::Mat position_mat(4,4,CV_32F);
+  cv::Mat rotation(3,3,CV_32F);
+  cv::Mat translation(3,1,CV_32F);
+
+  rotation = position_mat.rowRange(0,3).colRange(0,3);
+  translation = position_mat.rowRange(0,3).col(3);
+
+  translation.at<float>(0) = tf_translation[0];
+  translation.at<float>(1) = tf_translation[1];
+  translation.at<float>(2) = tf_translation[2];
+
+  rotation.at<float> (0,0) = tf_rotation[0][0];
+  rotation.at<float> (0,1) = tf_rotation[0][1];
+  rotation.at<float> (0,2) = tf_rotation[0][2];
+  rotation.at<float> (1,0) = tf_rotation[1][0];
+  rotation.at<float> (1,1) = tf_rotation[1][1];
+  rotation.at<float> (1,2) = tf_rotation[1][2];
+  rotation.at<float> (2,0) = tf_rotation[2][0];
+  rotation.at<float> (2,1) = tf_rotation[2][1];
+  rotation.at<float> (2,2) = tf_rotation[2][2];
+
+  return position_mat;
+}
+
 
 sensor_msgs::PointCloud2 Node::MapPointsToPointCloud (std::vector<ORB_SLAM2::MapPoint*> map_points) {
   if (map_points.size() == 0) {
@@ -358,10 +406,8 @@ void Node::AddOdometry(const tf2::Transform& tf_position, double timestamp) {
     // Make transform from target frame to camera frame
     tf2::Transform tf_target2map = TransformToTarget(tf_position, target_frame_id_param_, camera_frame_id_param_);
 
-    cv::Mat odomPosition(3,1,CV_32F);
-    odomPosition.at<float>(0) = tf_target2map.getOrigin().getX();
-    odomPosition.at<float>(1) = tf_target2map.getOrigin().getY();
-    odomPosition.at<float>(2) = tf_target2map.getOrigin().getZ();
-
-    orb_slam_->AddOdometry(odomPosition, timestamp);
+    cv::Mat odomTransform = TransformToMat(tf_target2map);
+    auto trans = TransformFromMat(odomTransform);
+    bool res = tf_target2map == trans;
+    orb_slam_->AddOdometry(odomTransform, timestamp);
 }

@@ -224,9 +224,9 @@ void System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double 
     current_position_ = Tcw;
 }
 
-void System::AddOdometry(const cv::Mat &pos, const double &timestamp) {
+void System::AddOdometry(const cv::Mat &pose, const double &timestamp) {
     if (mpTracker) {
-        mpTracker->GrabOdometry(pos, timestamp);
+        mpTracker->GrabOdometry(pose, timestamp);
     }
 }
 

@@ -734,7 +734,7 @@ void KeyFrame::serialize(Archive &ar, const unsigned int version)
     // mutex needed vars, but don't lock mutex in the save/load procedure
     {
         unique_lock<mutex> lock_pose(mMutexPose);
-        ar & Tcw & Twc & Ow & Cw;
+        ar & Tcw & Twc & Ow & Cw & mOdomTcw;
     }
     {
         unique_lock<mutex> lock_feature(mMutexFeatures);
