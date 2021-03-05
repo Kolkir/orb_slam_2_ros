@@ -43,6 +43,7 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
+const size_t min_init_obj_num = 50;
 const double odomTimeTolerance = 0.5; // seconds
 
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
@@ -568,7 +569,7 @@ void Tracking::MonocularInitialization()
     if(!mpInitializer)
     {
         // Set Reference Frame
-        if(mCurrentFrame.mvKeys.size()>100)
+        if(mCurrentFrame.mvKeys.size()>min_init_obj_num)
         {
             mInitialFrame = Frame(mCurrentFrame);
             mLastFrame = Frame(mCurrentFrame);
@@ -589,7 +590,7 @@ void Tracking::MonocularInitialization()
     else
     {
         // Try to initialize
-        if((int)mCurrentFrame.mvKeys.size()<=100)
+        if((int)mCurrentFrame.mvKeys.size()<=min_init_obj_num)
         {
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
@@ -599,13 +600,14 @@ void Tracking::MonocularInitialization()
 
         // Find correspondences
         ORBmatcher matcher(0.9,true);
-        int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
+        int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,min_init_obj_num);
 
         // Check if there are enough correspondences
-        if(nmatches<100)
+        if(nmatches<min_init_obj_num)
         {
             delete mpInitializer;
             mpInitializer = static_cast<Initializer*>(NULL);
+            std::cout << "Tracking::MonocularInitialization failed to find enough correspondences " << nmatches << std::endl;
             return;
         }
 
@@ -691,9 +693,9 @@ void Tracking::CreateInitialMapMonocular()
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
     float invMedianDepth = 1.0f/medianDepth;
 
-    if(medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
+    if(medianDepth < 0 || pKFcur->TrackedMapPoints(1) < min_init_obj_num)
     {
-        cout << "Wrong initialization(median depth = " << medianDepth << "), reseting..." << endl;
+        cout << "Wrong initialization(median depth = " << medianDepth << " tracked points = " << pKFcur->TrackedMapPoints(1) << "), reseting..." << endl;
         Reset();
         return;
     }
@@ -866,7 +868,7 @@ void Tracking::UpdateLastFrame()
             nPoints++;
         }
 
-        if(vDepthIdx[j].first>mThDepth && nPoints>100)
+        if(vDepthIdx[j].first>mThDepth && nPoints>min_init_obj_num)
             break;
     }
 }
