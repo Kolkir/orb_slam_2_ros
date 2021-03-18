@@ -58,6 +58,8 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
 
     mvAllIndices.reserve(mN1);
 
+    const double mvnMaxErrorFactor = 9.210; // used to define the error for selecting inliners in RANSAC
+
     size_t idx=0;
     for(int i1=0; i1<mN1; i1++)
     {
@@ -84,8 +86,8 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
             const float sigmaSquare1 = pKF1->mvLevelSigma2[kp1.octave];
             const float sigmaSquare2 = pKF2->mvLevelSigma2[kp2.octave];
 
-            mvnMaxError1.push_back(9.210*sigmaSquare1);
-            mvnMaxError2.push_back(9.210*sigmaSquare2);
+            mvnMaxError1.push_back(mvnMaxErrorFactor * sigmaSquare1);
+            mvnMaxError2.push_back(mvnMaxErrorFactor * sigmaSquare2);
 
             mvpMapPoints1.push_back(pMP1);
             mvpMapPoints2.push_back(pMP2);
@@ -179,6 +181,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
         ComputeSim3(P3Dc1i,P3Dc2i);
 
         CheckInliers();
+
+        cout << "Sim3Solver inliners num = " << mnInliersi  << " best num = " << mnBestInliers << endl;
 
         if(mnInliersi>=mnBestInliers)
         {
@@ -345,6 +349,8 @@ void Sim3Solver::CheckInliers()
 
     mnInliersi=0;
 
+    cout << "Sim3Solver::CheckInliers inliner candidate num = " << mvP1im1.size() << endl;
+
     for(size_t i=0; i<mvP1im1.size(); i++)
     {
         cv::Mat dist1 = mvP1im1[i]-vP2im1[i];
@@ -357,9 +363,11 @@ void Sim3Solver::CheckInliers()
         {
             mvbInliersi[i]=true;
             mnInliersi++;
-        }
-        else
+        } else {
+            cout << "Sim3Solver::CheckInliers err1 = " << err1 << " limit = " << mvnMaxError1[i] << endl;
+            cout << "Sim3Solver::CheckInliers err2 = " << err2 << " limit = " << mvnMaxError2[i] << endl;
             mvbInliersi[i]=false;
+        }
     }
 }
 

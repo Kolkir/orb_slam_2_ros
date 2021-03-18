@@ -155,6 +155,7 @@ bool LoopClosing::DetectLoop()
     // We must detect a consistent loop in several consecutive keyframes to accept it
     mvpEnoughConsistentCandidates.clear();
 
+    double meanCovisibilityConsistency = 0;
     vector<ConsistentGroup> vCurrentConsistentGroups;
     vector<bool> vbConsistentGroup(mvConsistentGroups.size(),false);
     for(size_t i=0, iend=vpCandidateKFs.size(); i<iend; i++)
@@ -191,6 +192,7 @@ bool LoopClosing::DetectLoop()
                     vCurrentConsistentGroups.push_back(cg);
                     vbConsistentGroup[iG]=true; //this avoid to include the same group more than once
                 }
+                meanCovisibilityConsistency += nCurrentConsistency;
                 if(nCurrentConsistency>=mnCovisibilityConsistencyTh && !bEnoughConsistent)
                 {
                     mvpEnoughConsistentCandidates.push_back(pCandidateKF);
@@ -198,6 +200,7 @@ bool LoopClosing::DetectLoop()
                 }
             }
         }
+        meanCovisibilityConsistency /= mvConsistentGroups.size();
 
         // If the group is not consistent with any previous group insert with consistency counter set to zero
         if(!bConsistentForSomeGroup)
@@ -216,16 +219,20 @@ bool LoopClosing::DetectLoop()
 
     if(mvpEnoughConsistentCandidates.empty())
     {
+        cout << "FAILED: Loop detection ConsistentCandidates = " << mvpEnoughConsistentCandidates.size() << " KF candidates = " << vpCandidateKFs.size() << std::endl;
+        cout << "FAILED: Loop detection BoW min score = " << minScore << std::endl;
+        cout << "FAILED: Loop detection MeanCovisibilityConsistency = " << meanCovisibilityConsistency << endl;
+
         mpCurrentKF->SetErase();
         return false;
     }
     else
     {
+        cout << "SUCCESS: Loop detection ConsistentCandidates = " << mvpEnoughConsistentCandidates.size() << " KF candidates = " << vpCandidateKFs.size() << std::endl;
+        cout << "SUCCESS: Loop detection BoW min score = " << minScore << std::endl;
+        cout << "SUCCESS: Loop detection MeanCovisibilityConsistency = " << meanCovisibilityConsistency << endl;
         return true;
     }
-
-    mpCurrentKF->SetErase();
-    return false;
 }
 
 bool LoopClosing::ComputeSim3()
@@ -234,9 +241,17 @@ bool LoopClosing::ComputeSim3()
 
     const int nInitialCandidates = mvpEnoughConsistentCandidates.size();
 
+    const double ransacInlinerProbability=0.99;
+    const int ransacMinInliers = 20;
+    const int nBoWMatches = 20;
+    const float orbNNRatio = 1.1f; // higher less restrictive
+    const int nRansacIterations = 5;
+    const float sim3OptimizeTh2 = 20; // have an influence on inliners count after optimization, bigger less restrictive
+    const bool orbCheckOrientation = false;
+
     // We compute first ORB matches for each candidate
     // If enough matches are found, we setup a Sim3Solver
-    ORBmatcher matcher(0.75,true);
+    ORBmatcher matcher(orbNNRatio, orbCheckOrientation);
 
     vector<Sim3Solver*> vpSim3Solvers;
     vpSim3Solvers.resize(nInitialCandidates);
@@ -246,6 +261,8 @@ bool LoopClosing::ComputeSim3()
 
     vector<bool> vbDiscarded;
     vbDiscarded.resize(nInitialCandidates);
+
+    const int ransacMaxIteration = 300;
 
     int nCandidates=0; //candidates with enough matches
 
@@ -263,8 +280,9 @@ bool LoopClosing::ComputeSim3()
         }
 
         int nmatches = matcher.SearchByBoW(mpCurrentKF,pKF,vvpMapPointMatches[i]);
+        cout << "Loop closing: BoW matches for candidate = " << nmatches << endl;
 
-        if(nmatches<20)
+        if(nmatches < nBoWMatches)
         {
             vbDiscarded[i] = true;
             continue;
@@ -272,7 +290,7 @@ bool LoopClosing::ComputeSim3()
         else
         {
             Sim3Solver* pSolver = new Sim3Solver(mpCurrentKF,pKF,vvpMapPointMatches[i],mbFixScale);
-            pSolver->SetRansacParameters(0.99,20,300);
+            pSolver->SetRansacParameters(ransacInlinerProbability, ransacMinInliers, ransacMaxIteration);
             vpSim3Solvers[i] = pSolver;
         }
 
@@ -281,8 +299,12 @@ bool LoopClosing::ComputeSim3()
 
     bool bMatch = false;
 
+    cout << "Loop closing: ORB match init candidates = " << nInitialCandidates << " left after BoW filter = " <<  nCandidates << endl;
+
     // Perform alternatively RANSAC iterations for each candidate
     // until one is succesful or all fail
+    long double meanInliersNum = 0;
+    int64_t meanInliersTries = 0;
     while(nCandidates>0 && !bMatch)
     {
         for(int i=0; i<nInitialCandidates; i++)
@@ -292,13 +314,13 @@ bool LoopClosing::ComputeSim3()
 
             KeyFrame* pKF = mvpEnoughConsistentCandidates[i];
 
-            // Perform 5 Ransac Iterations
+            // Perform Ransac Iterations
             vector<bool> vbInliers;
             int nInliers;
             bool bNoMore;
 
             Sim3Solver* pSolver = vpSim3Solvers[i];
-            cv::Mat Scm  = pSolver->iterate(5,bNoMore,vbInliers,nInliers);
+            cv::Mat Scm  = pSolver->iterate(nRansacIterations, bNoMore, vbInliers,nInliers);
 
             // If Ransac reachs max. iterations discard keyframe
             if(bNoMore)
@@ -323,10 +345,14 @@ bool LoopClosing::ComputeSim3()
                 matcher.SearchBySim3(mpCurrentKF,pKF,vpMapPointMatches,s,R,t,7.5);
 
                 g2o::Sim3 gScm(Converter::toMatrix3d(R),Converter::toVector3d(t),s);
-                const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
+                const int nInliers = Optimizer::OptimizeSim3(mpCurrentKF, pKF, vpMapPointMatches, gScm, sim3OptimizeTh2, mbFixScale);
 
+                cout << "Loop closing OptimizeSim3 inliners left = " << nInliers << endl;
+
+                meanInliersNum += nInliers;
+                ++meanInliersTries;
                 // If optimization is succesful stop ransacs and continue
-                if(nInliers >= 20)
+                if(nInliers >= ransacMinInliers)
                 {
                     bMatch = true;
                     mpMatchedKF = pKF;
@@ -337,17 +363,22 @@ bool LoopClosing::ComputeSim3()
                     mvpCurrentMatchedPoints = vpMapPointMatches;
                     break;
                 }
+            } else {
+                cout << "FAILED: RANSAC returns empty Sim3" << endl;
             }
         }
     }
+    meanInliersNum /= meanInliersTries;
 
     if(!bMatch)
     {
+        cout << "FAILED: Loop closing mean Inliers Num = " << meanInliersNum << endl;
         for(int i=0; i<nInitialCandidates; i++)
              mvpEnoughConsistentCandidates[i]->SetErase();
         mpCurrentKF->SetErase();
         return false;
     }
+    cout << "SUCCESS: Loop closing mean Inliers Num = " << meanInliersNum << endl;
 
     // Retrieve MapPoints seen in Loop Keyframe and neighbors
     vector<KeyFrame*> vpLoopConnectedKFs = mpMatchedKF->GetVectorCovisibleKeyFrames();
@@ -372,7 +403,8 @@ bool LoopClosing::ComputeSim3()
     }
 
     // Find more matches projecting with the computed Sim3
-    matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
+    int radiusScaleFactor = 10;
+    matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints, radiusScaleFactor);
 
     // If enough matches accept Loop
     int nTotalMatches = 0;
@@ -384,6 +416,7 @@ bool LoopClosing::ComputeSim3()
 
     if(nTotalMatches>=40)
     {
+        cout << "SUCCESS: Loop closing Total Matches(lim 40) = " << nTotalMatches << endl;
         for(int i=0; i<nInitialCandidates; i++)
             if(mvpEnoughConsistentCandidates[i]!=mpMatchedKF)
                 mvpEnoughConsistentCandidates[i]->SetErase();
@@ -391,6 +424,7 @@ bool LoopClosing::ComputeSim3()
     }
     else
     {
+        cout << "FAILED: Loop closing Total Matches(lim 40) = " << nTotalMatches << endl;
         for(int i=0; i<nInitialCandidates; i++)
             mvpEnoughConsistentCandidates[i]->SetErase();
         mpCurrentKF->SetErase();
