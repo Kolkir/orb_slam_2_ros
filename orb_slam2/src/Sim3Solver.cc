@@ -56,9 +56,31 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
     cv::Mat Rcw2 = pKF2->GetRotation();
     cv::Mat tcw2 = pKF2->GetTranslation();
 
-    mvAllIndices.reserve(mN1);
+    cv::Mat kf1_odom = pKF1->GetOdomPose();
+    cv::Mat kf2_odom = pKF2->GetOdomPose();
 
-    const double mvnMaxErrorFactor = 9.210; // used to define the error for selecting inliners in RANSAC
+    double mvnMaxErrorFactor = 9.210; // used to define the error for selecting inliners in RANSAC
+
+    if (cv::countNonZero(kf1_odom) > 0 && cv::countNonZero(kf2_odom) > 0) {
+
+        cv::Mat tcw1_odom = kf1_odom.rowRange(0,3).col(3);
+        cv::Mat kf1_dist = tcw1_odom - tcw1;
+        auto kf1_error = kf1_dist.dot(kf1_dist);
+
+        cv::Mat tcw2_odom = kf2_odom.rowRange(0,3).col(3);
+        cv::Mat kf2_dist = tcw2_odom - tcw2;
+        auto kf2_error = kf2_dist.dot(kf2_dist);
+
+        cv::Mat kf_dist = tcw1 - tcw2;
+        cv::Mat odom_dist = tcw1_odom - tcw2_odom;
+
+        //mvnMaxErrorFactor = odom_dist.dot(odom_dist) / kf_dist.dot(kf_dist);
+
+        cout << "Sim3Solver KF1 odom error = " << kf1_error << " KF2 odom error = " << kf2_error << " error scale factor = " << mvnMaxErrorFactor << endl;
+    }
+
+
+    mvAllIndices.reserve(mN1);    
 
     size_t idx=0;
     for(int i1=0; i1<mN1; i1++)
@@ -147,6 +169,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
     if(N<mRansacMinInliers)
     {
+        cout << "Sim3Solver failed N " << N  << " !< " << mRansacMinInliers << endl;
         bNoMore = true;
         return cv::Mat();
     }
@@ -182,10 +205,10 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
 
         CheckInliers();
 
-        cout << "Sim3Solver inliners num = " << mnInliersi  << " best num = " << mnBestInliers << endl;
-
         if(mnInliersi>=mnBestInliers)
         {
+           cout << "Sim3Solver inliners num = " << mnInliersi  << " best num = " << mnBestInliers  << " RansacMinInliers = " << mRansacMinInliers << endl;
+
             mvbBestInliers = mvbInliersi;
             mnBestInliers = mnInliersi;
             mBestT12 = mT12i.clone();
@@ -201,6 +224,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
                         vbInliers[mvnIndices1[i]] = true;
                 return mBestT12;
             }
+        } else {
+          cout << "FAILED: Sim3Solver inliners num = " << mnInliersi  << " best num = " << mnBestInliers  << " RansacMinInliers = " << mRansacMinInliers << endl;
         }
     }
 
@@ -431,3 +456,4 @@ void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat>
 }
 
 } //namespace ORB_SLAM
+

@@ -241,13 +241,13 @@ bool LoopClosing::ComputeSim3()
 
     const int nInitialCandidates = mvpEnoughConsistentCandidates.size();
 
-    const double ransacInlinerProbability=0.99;
-    const int ransacMinInliers = 20;
-    const int nBoWMatches = 20;
-    const float orbNNRatio = 1.1f; // higher less restrictive
+    const double ransacInlinerProbability = 0.99;
+    const int ransacMinInliers = 20; // 6 should be less then nBoWMatches
+    const int nBoWMatches = 20; // 7
+    const float orbNNRatio = 0.75f; // higher less restrictive
     const int nRansacIterations = 5;
     const float sim3OptimizeTh2 = 20; // have an influence on inliners count after optimization, bigger less restrictive
-    const bool orbCheckOrientation = false;
+    const bool orbCheckOrientation = true;
 
     // We compute first ORB matches for each candidate
     // If enough matches are found, we setup a Sim3Solver

@@ -580,7 +580,8 @@ void Tracking::MonocularInitialization()
             if(mpInitializer)
                 delete mpInitializer;
 
-            mpInitializer =  new Initializer(mCurrentFrame,1.0,200);
+            const float sigma = 1.0f;
+            mpInitializer =  new Initializer(mCurrentFrame,sigma,200);
 
             fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
 
@@ -610,6 +611,7 @@ void Tracking::MonocularInitialization()
             std::cout << "Tracking::MonocularInitialization failed to find enough correspondences " << nmatches << std::endl;
             return;
         }
+        std::cout << "Tracking::MonocularInitialization number of correspondences found = " << nmatches << std::endl;
 
         cv::Mat Rcw; // Current Camera Rotation
         cv::Mat tcw; // Current Camera Translation
@@ -634,6 +636,8 @@ void Tracking::MonocularInitialization()
             mCurrentFrame.SetPose(Tcw);
 
             CreateInitialMapMonocular();
+        } else {
+          std::cout << "Tracking::MonocularInitialization Initialize failed!\n";
         }
     }
 }

@@ -112,12 +112,17 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     float RH = SH/(SH+SF);
 
     // Try to reconstruct from homography or fundamental depending on the ratio (0.40-0.45)
-    if(RH>0.40)
-        return ReconstructH(vbMatchesInliersH,H,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
-    else //if(pF_HF>0.6)
-        return ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
-
-    return false;
+    const int minTriangualted = 20; // 50
+    const float minParalax = 1.0f; // 1
+    if(RH > 0.40) {
+        cout << "Try to reconstruct from homography\n";
+        if (ReconstructH(vbMatchesInliersH,H,mK,R21,t21,vP3D,vbTriangulated,minParalax,minTriangualted))
+          return true;
+    }
+    { //if(pF_HF>0.6)
+        cout << "Try to reconstruct from fundamental\n";
+        return ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,minParalax,minTriangualted);
+    }
 }
 
 
@@ -596,6 +601,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
     if(d1/d2<1.00001 || d2/d3<1.00001)
     {
+        cout << "ReconstructH failed d1/d2<1.00001 = " << d1/d2 << " or d2/d3<1.00001" << d2/d3 << endl;
         return false;
     }
 
@@ -727,6 +733,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
         return true;
     }
+    cout << "ReconstructH secondBestGood<0.75*bestGood && bestParallax>=minParallax && bestGood>minTriangulated && bestGood>0.9*N"<< endl;
+    cout << "secondBestGood = " << secondBestGood << " bestGood = " << bestGood << " bestParallax = " << bestParallax<< " minParallax= " << minParallax << " bestGood = " << bestGood << " minTriangulated = " << minTriangulated << " N =" << N << endl;
 
     return false;
 }
