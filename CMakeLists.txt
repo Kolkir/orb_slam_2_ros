@@ -26,6 +26,7 @@ tf
 sensor_msgs
 dynamic_reconfigure
 message_generation
+nodelet
 )
 
 find_package(OpenCV 4.0 QUIET)
