@@ -6,6 +6,7 @@ Node::Node(ORB_SLAM2::System::eSensor sensor) {
   name_of_node_ = ros::this_node::getName();
   min_observations_per_point_ = 2;
   sensor_ = sensor;
+  ROS_INFO_STREAM("ORB SLAM base node constructor");
 }
 
 Node::~Node() {
@@ -43,6 +44,8 @@ void Node::Init(ros::NodeHandle& node_handle,
   ORB_SLAM2::ORBParameters parameters;
   LoadOrbParameters(parameters);
 
+  ROS_INFO_STREAM("ORB Slam sensor type is monocular = "
+                  << (sensor_ == ORB_SLAM2::System::MONOCULAR));
   orb_slam_ = new ORB_SLAM2::System(voc_file_name_param_, sensor_, parameters,
                                     map_file_name_param_, load_map_param_);
 
@@ -405,7 +408,7 @@ void Node::LoadOrbParameters(ORB_SLAM2::ORBParameters& parameters) {
                     << node_handle_.resolveName(camera_info_topic_));
     sensor_msgs::CameraInfo::ConstPtr camera_info =
         ros::topic::waitForMessage<sensor_msgs::CameraInfo>(
-            camera_info_topic_, ros::Duration(1000.0));
+            camera_info_topic_, node_handle_, ros::Duration(120.0));
     if (camera_info == nullptr) {
       ROS_WARN(
           "Did not receive camera info before timeout, defaulting to launch "
@@ -454,8 +457,9 @@ void Node::LoadOrbParameters(ORB_SLAM2::ORBParameters& parameters) {
       node_handle_.getParam(name_of_node_ + "/camera_k3", parameters.k3);
 
   if (!got_cam_calibration) {
-    ROS_ERROR(
-        "Failed to get camera calibration parameters from the launch file.");
+    ROS_ERROR_STREAM("ORB SLAM node " << name_of_node_
+                                      << " Failed to get camera calibration "
+                                         "parameters from the launch file.");
     throw std::runtime_error("No cam calibration");
   }
 }

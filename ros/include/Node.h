@@ -64,6 +64,9 @@ class Node {
 
   std::string camera_info_topic_;
 
+  std::string name_of_node_;
+  ORB_SLAM2::System::eSensor sensor_;
+
  private:
   void PublishMapPoints(std::vector<ORB_SLAM2::MapPoint*> map_points);
   void PublishPositionAsTransform(cv::Mat position);
@@ -96,10 +99,7 @@ class Node {
 
   ros::ServiceServer service_server_;
 
-  std::string name_of_node_;
   ros::NodeHandle node_handle_;
-
-  ORB_SLAM2::System::eSensor sensor_;
 
   std::string map_frame_id_param_;
   std::string camera_frame_id_param_;
@@ -110,7 +110,7 @@ class Node {
   bool publish_pointcloud_param_;
   bool publish_tf_param_;
   bool publish_pose_param_;
-  int min_observations_per_point_;
+  int min_observations_per_point_ = 2;
 };
 
 #endif  // ORBSLAM2_ROS_NODE_H_

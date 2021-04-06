@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(orb_slam2_ros)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
@@ -22,11 +24,11 @@ rospy
 std_msgs
 cv_bridge
 image_transport
+nodelet
 tf
 sensor_msgs
 dynamic_reconfigure
 message_generation
-nodelet
 )
 
 find_package(OpenCV 4.0 QUIET)
@@ -77,8 +79,8 @@ generate_messages(
 )
 
 catkin_package (
-  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport tf sensor_msgs dynamic_reconfigure message_runtime
-  LIBRARIES {PROJECT_NAME} libDBoW2 libg2o
+  CATKIN_DEPENDS roscpp rospy std_msgs cv_bridge image_transport nodelet tf sensor_msgs dynamic_reconfigure message_runtime
+  LIBRARIES {PROJECT_NAME} lib${PROJECT_NAME}_mono_lib libDBoW2 libg2o
 )
 
 include_directories(
@@ -128,41 +130,62 @@ if (NOT BOOST_SERIALIZATION)
 endif()
 target_link_libraries(${PROJECT_NAME} ${BOOST_SERIALIZATION})
 
-add_executable (${PROJECT_NAME}_mono
+#add_executable (${PROJECT_NAME}_mono
+#ros/src/MonoNode.cc
+#ros/src/Node.cc
+#)
+#add_dependencies (${PROJECT_NAME}_mono ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+#add_dependencies (${PROJECT_NAME}_mono ${${PROJECT_NAME}_EXPROTED_TARGETS}) 
+
+add_library (${PROJECT_NAME}_mono_lib
 ros/src/MonoNode.cc
 ros/src/Node.cc
 )
-add_dependencies (${PROJECT_NAME}_mono ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+set_target_properties(${PROJECT_NAME}_mono_lib
+  PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib
+)
+add_dependencies (${PROJECT_NAME}_mono_lib 
+	          ${PROJECT_NAME} 
+		  ${PROJECT_NAME}_gencfg
+		  ${PROJECT_NAME}_gencpp
+		  )
 
-target_link_libraries(${PROJECT_NAME}_mono
+#target_link_libraries(${PROJECT_NAME}_mono
+#${LIBS_ROS}
+#)
+
+target_link_libraries(${PROJECT_NAME}_mono_lib
 ${LIBS_ROS}
 )
 
-add_executable (${PROJECT_NAME}_stereo
-ros/src/StereoNode.cc
-ros/src/Node.cc
-)
-add_dependencies (${PROJECT_NAME}_stereo ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 
-target_link_libraries(${PROJECT_NAME}_stereo
-${LIBS_ROS}
-)
+#add_executable (${PROJECT_NAME}_stereo
+#ros/src/StereoNode.cc
+#ros/src/Node.cc
+#)
+#add_dependencies (${PROJECT_NAME}_stereo ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+#add_dependencies (${PROJECT_NAME}_stereo ${${PROJECT_NAME}_EXPROTED_TARGETS} ${catkin_EXPORTED_TARGETS}) 
 
-add_executable (${PROJECT_NAME}_rgbd
-ros/src/RGBDNode.cc
-ros/src/Node.cc
-)
-add_dependencies (${PROJECT_NAME}_rgbd ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+#target_link_libraries(${PROJECT_NAME}_stereo
+#${LIBS_ROS}
+#)
 
-target_link_libraries(${PROJECT_NAME}_rgbd
-${LIBS_ROS}
-)
+#add_executable (${PROJECT_NAME}_rgbd
+#ros/src/RGBDNode.cc
+#ros/src/Node.cc
+#)
+#add_dependencies (${PROJECT_NAME}_rgbd ${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
+#add_dependencies (${PROJECT_NAME}_rgbd ${${PROJECT_NAME}_EXPROTED_TARGETS}) 
 
-install(TARGETS ${PROJECT_NAME}_mono ${PROJECT_NAME}_stereo ${PROJECT_NAME}_rgbd
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#target_link_libraries(${PROJECT_NAME}_rgbd
+#${LIBS_ROS}
+#)
+
+#install(TARGETS ${PROJECT_NAME}_mono_lib
+#  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 install(TARGETS ${PROJECT_NAME} DBoW2 g2o
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

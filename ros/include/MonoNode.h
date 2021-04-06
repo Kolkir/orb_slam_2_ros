@@ -31,7 +31,7 @@ namespace orb_slam2_ros {
 
 class MonoNode : public Node, public nodelet::Nodelet {
  public:
-  MonoNode() : Node(ORB_SLAM2::System::MONOCULAR) {}
+  MonoNode();
 
   ~MonoNode() override;
   void ImageCallback(const sensor_msgs::ImageConstPtr& msg);
@@ -44,8 +44,6 @@ class MonoNode : public Node, public nodelet::Nodelet {
  private:
   image_transport::Subscriber image_subscriber_;
   ros::Subscriber odom_subscriber_;
-  std::shared_ptr<ros::NodeHandle> node_handle_;
-  std::shared_ptr<ros::NodeHandle> private_node_handle_;
 };
 
 }  // namespace orb_slam2_ros

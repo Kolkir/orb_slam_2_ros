@@ -28,21 +28,34 @@ int main(int argc, char** argv) {
 
 namespace orb_slam2_ros {
 
+MonoNode::MonoNode() : Node(ORB_SLAM2::System::MONOCULAR) {
+  NODELET_INFO_STREAM("ORB SLAM node constructor");
+}
+
 void MonoNode::onInit() {
-  node_handle_.reset(new ros::NodeHandle(getNodeHandle()));
-  private_node_handle_.reset(new ros::NodeHandle(getPrivateNodeHandle()));
+  name_of_node_ = getName();
+  sensor_ = ORB_SLAM2::System::MONOCULAR;
 
   // Create SLAM system. It initializes all system threads and gets ready to
   // process frames.
-  image_transport::ImageTransport image_transport(*node_handle_);
+  NODELET_INFO_STREAM("ORB SLAM node " << name_of_node_
+                                       << " initialization ...");
+
+  image_transport::ImageTransport image_transport(getNodeHandle());
+
+  camera_info_topic_ = "/camera/camera_info";
+
+  Init(getNodeHandle(), image_transport);
 
   image_subscriber_ = image_transport.subscribe("/camera/image_raw", 1,
                                                 &MonoNode::ImageCallback, this);
-  camera_info_topic_ = "/camera/camera_info";
-  odom_subscriber_ =
-      node_handle_->subscribe("odom", 1, &MonoNode::OdomCallback, this);
 
-  Init(*node_handle_, image_transport);
+  const std::string odom_topic = "/odom";
+
+  NODELET_INFO_STREAM("Listening for odom on topic "
+                      << getNodeHandle().resolveName(odom_topic));
+  odom_subscriber_ =
+      getNodeHandle().subscribe(odom_topic, 1, &MonoNode::OdomCallback, this);
 }
 
 MonoNode::~MonoNode() {}
@@ -74,3 +87,6 @@ void MonoNode::OdomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
   AddOdometry(transform, msg->header.stamp.toSec());
 }
 }  // namespace orb_slam2_ros
+
+#include <pluginlib/class_list_macros.h>
+PLUGINLIB_EXPORT_CLASS(orb_slam2_ros::MonoNode, nodelet::Nodelet)

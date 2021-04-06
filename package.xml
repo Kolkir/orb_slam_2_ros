@@ -30,6 +30,6 @@
   <run_depend>message_runtime</run_depend>
   <run_depend>nodelet</run_depend>
   <export>
-     <nodelet plugin="${prefix}/nodelet_plugins.xml"/>
+     <nodelet plugin="${prefix}/nodelet_plugin.xml"/>
   </export>
 </package>

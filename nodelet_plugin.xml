@@ -1,4 +1,4 @@
-<library path="lib/liborb_slam2_ros">
+<library path="lib/liborb_slam2_ros_mono_lib">
   <class name="orb_slam2_ros/MonoSlam"
          type="orb_slam2_ros::MonoNode"
          base_class_type="nodelet::Nodelet">
